@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Store": {
+      "title": "Store",
+      "description": "Retail stores managed by the user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "sales": { "type": "number" },
+        "location": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "sales"]
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "Items in stock",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unitPrice": { "type": "number" },
+        "category": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "quantity"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer orders",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "customerName", "amount", "status"]
+    },
+    "Purchase": {
+      "title": "Purchase",
+      "description": "Stock purchases from suppliers",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "supplier": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "supplier", "amount"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Private user profile data"
+    },
+    "stores/{storeId}": {
+      "schema": "Store",
+      "description": "Collection of stores"
+    },
+    "inventory/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "Collection of inventory items"
+    },
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of orders"
+    },
+    "purchases/{purchaseId}": {
+      "schema": "Purchase",
+      "description": "Collection of purchases"
+    }
+  }
+}

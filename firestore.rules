@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // --- User Validation ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.keys().size() <= 5 && // uid, email, displayName, photoURL, createdAt
+             data.uid == request.auth.uid &&
+             data.email is string &&
+             data.email.size() < 256;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL']);
+    }
+
+    // --- Store Validation ---
+    function isValidStore(data) {
+      return data.keys().hasAll(['userId', 'name', 'sales']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() <= 100 &&
+             data.sales is number && data.sales >= 0;
+    }
+
+    match /stores/{storeId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(storeId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(storeId) && isValidStore(incoming());
+      allow update: if isSignedIn() && isValidId(storeId) && existing().userId == request.auth.uid &&
+                    isValidStore(incoming()) &&
+                    incoming().userId == existing().userId &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['name', 'sales', 'location', 'updatedAt']);
+      allow delete: if isSignedIn() && isValidId(storeId) && existing().userId == request.auth.uid;
+    }
+
+    // --- Inventory Validation ---
+    function isValidInventory(data) {
+      return data.keys().hasAll(['userId', 'name', 'quantity']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() <= 100 &&
+             data.quantity is number && data.quantity >= 0;
+    }
+
+    match /inventory/{itemId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(itemId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(itemId) && isValidInventory(incoming());
+      allow update: if isSignedIn() && isValidId(itemId) && existing().userId == request.auth.uid &&
+                    isValidInventory(incoming()) &&
+                    incoming().userId == existing().userId &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['name', 'quantity', 'unitPrice', 'category', 'updatedAt']);
+      allow delete: if isSignedIn() && isValidId(itemId) && existing().userId == request.auth.uid;
+    }
+
+    // --- Orders Validation ---
+    function isValidOrder(data) {
+      return data.keys().hasAll(['userId', 'customerName', 'amount', 'status']) &&
+             data.userId == request.auth.uid &&
+             data.customerName is string && data.customerName.size() <= 100 &&
+             data.amount is number && data.amount >= 0 &&
+             data.status in ['pending', 'completed', 'cancelled'];
+    }
+
+    match /orders/{orderId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(orderId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming());
+      allow update: if isSignedIn() && isValidId(orderId) && existing().userId == request.auth.uid &&
+                    isValidOrder(incoming()) &&
+                    incoming().userId == existing().userId &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['customerName', 'amount', 'status', 'updatedAt']);
+      allow delete: if isSignedIn() && isValidId(orderId) && existing().userId == request.auth.uid;
+    }
+
+    // --- Purchase Validation ---
+    function isValidPurchase(data) {
+      return data.keys().hasAll(['userId', 'supplier', 'amount']) &&
+             data.userId == request.auth.uid &&
+             data.supplier is string && data.supplier.size() <= 100 &&
+             data.amount is number && data.amount >= 0;
+    }
+
+    match /purchases/{purchaseId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(purchaseId) && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(purchaseId) && isValidPurchase(incoming());
+      allow update: if isSignedIn() && isValidId(purchaseId) && existing().userId == request.auth.uid &&
+                    isValidPurchase(incoming()) &&
+                    incoming().userId == existing().userId &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['supplier', 'amount', 'date', 'updatedAt']);
+      allow delete: if isSignedIn() && isValidId(purchaseId) && existing().userId == request.auth.uid;
+    }
+  }
+}
